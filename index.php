@@ -13,7 +13,7 @@
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <a href="#" class="text-2xl font-bold text-blue-600">Expense Manager</a>
+                    <a href="#" class="text-2xl font-bold text-blue-600">Expense Managers</a>
                 </div>
                 <div class="flex items-center space-x-8">
                     <a href="#about" class="text-gray-700 hover:text-blue-600">About Us</a>
