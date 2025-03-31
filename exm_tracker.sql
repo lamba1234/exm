@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 31, 2025 at 11:38 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- Generation Time: Mar 31, 2025 at 01:56 PM
+-- Server version: 10.4.28-MariaDB
+-- PHP Version: 8.2.4
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -20,6 +20,26 @@ SET time_zone = "+00:00";
 --
 -- Database: `exm_tracker`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `budget`
+--
+
+CREATE TABLE `budget` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `date` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `budget`
+--
+
+INSERT INTO `budget` (`id`, `user_id`, `amount`, `date`) VALUES
+(1, 1, 30000.00, '2025-03-29');
 
 -- --------------------------------------------------------
 
@@ -119,7 +139,8 @@ CREATE TABLE `expenses` (
 --
 
 INSERT INTO `expenses` (`expense_id`, `company_id`, `employee_id`, `category_id`, `expense_date`, `amount`, `description`, `receipt_path`, `status`, `created_at`, `updated_at`) VALUES
-(1, 1, 2, 1, '2025-03-27', 15000.00, 'today', 'uploads/receipts/67e42248f27a2.png', 'pending', '2025-03-26 15:50:33', '2025-03-26 15:50:33');
+(1, 1, 2, 1, '2025-03-27', 15000.00, 'today', 'uploads/receipts/67e42248f27a2.png', 'pending', '2025-03-26 15:50:33', '2025-03-26 15:50:33'),
+(2, 1, 2, 1, '2025-04-01', 20000.00, 'Food', 'uploads/receipts/67ea6f2d9f371.png', 'pending', '2025-03-31 10:32:13', '2025-03-31 10:32:13');
 
 -- --------------------------------------------------------
 
@@ -139,8 +160,22 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `full_name`, `phone`, `created_at`, `updated_at`) VALUES
+(1, '', 'jane123@gmail.com', '$2y$10$kI4yInblLM2MYgwfe.Pa9eFjRHAKsr47pCj.izaR0zzBVDh8iAR/q', 'jane', '+237651217428', '2025-03-31 11:39:15', '2025-03-31 11:39:15');
+
+--
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `budget`
+--
+ALTER TABLE `budget`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `categories`
@@ -184,6 +219,12 @@ ALTER TABLE `users`
 --
 
 --
+-- AUTO_INCREMENT for table `budget`
+--
+ALTER TABLE `budget`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
@@ -205,17 +246,23 @@ ALTER TABLE `employees`
 -- AUTO_INCREMENT for table `expenses`
 --
 ALTER TABLE `expenses`
-  MODIFY `expense_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `expense_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `budget`
+--
+ALTER TABLE `budget`
+  ADD CONSTRAINT `budget_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `categories`
