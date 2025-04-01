@@ -44,7 +44,9 @@
                 </div>
                 <?php if (isset($_SESSION['user_id'])): ?>
                 <div class="flex items-center space-x-4">
-                    <span class="text-gray-700"><?php echo htmlspecialchars($_SESSION['company_name']); ?></span>
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin' && isset($_SESSION['company_name'])): ?>
+                        <span class="text-gray-700"><?php echo htmlspecialchars($_SESSION['company_name']); ?></span>
+                    <?php endif; ?>
                 </div>
                 <?php else: ?>
                 <div class="flex items-center space-x-4">

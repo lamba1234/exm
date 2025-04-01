@@ -155,6 +155,9 @@ $monthly_total = $stmt->get_result()->fetch_assoc()['total'];
                         <a href="<?php echo $role === 'admin' ? 'view_expenses.php' : 'my_expenses.php'; ?>" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                             <?php echo $role === 'admin' ? 'View All Expenses' : 'View My Expenses'; ?>
                         </a>
+                        <a href="view_budget.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                            View Company Budget
+                        </a>
                         <?php if ($role === 'admin'): ?>
                         <a href="manage_employees.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
                             Manage Employees

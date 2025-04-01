@@ -188,6 +188,9 @@ $page_title = "Admin Dashboard";
                         <a href="reports.php" class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700">
                             View Reports
                         </a>
+                        <a href="manage_budgets.php" class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                            Manage Budget
+                        </a>
                     </div>
                 </div>
             </div>

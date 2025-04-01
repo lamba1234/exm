@@ -51,7 +51,7 @@ $budget_result = $budget_stmt->get_result();
 $current_budget = $budget_result->fetch_assoc()['amount'] ?? 0;
 
 // Get total expenses for current month
-$expenses_sql = "SELECT SUM(amount) as total FROM expenses WHERE employee_id = ? AND MONTH(expense_date) = MONTH(CURRENT_DATE()) AND YEAR(expense_date) = YEAR(CURRENT_DATE())";
+$expenses_sql = "SELECT COALESCE(SUM(amount), 0) as total FROM expenses_user WHERE user_id = ? AND MONTH(expense_date) = MONTH(CURRENT_DATE()) AND YEAR(expense_date) = YEAR(CURRENT_DATE())";
 $expenses_stmt = $conn->prepare($expenses_sql);
 $expenses_stmt->bind_param("i", $user_id);
 $expenses_stmt->execute();
@@ -59,7 +59,7 @@ $expenses_result = $expenses_stmt->get_result();
 $total_expenses = $expenses_result->fetch_assoc()['total'] ?? 0;
 
 // Get recent expenses
-$recent_expenses_sql = "SELECT e.*, c.category_name FROM expenses e LEFT JOIN categories c ON e.category_id = c.category_id WHERE e.employee_id = ? ORDER BY e.expense_date DESC LIMIT 5";
+$recent_expenses_sql = "SELECT e.*, c.category_name FROM expenses_user e LEFT JOIN user_categories c ON e.category_id = c.category_id WHERE e.user_id = ? ORDER BY e.expense_date DESC LIMIT 5";
 $recent_expenses_stmt = $conn->prepare($recent_expenses_sql);
 $recent_expenses_stmt->bind_param("i", $user_id);
 $recent_expenses_stmt->execute();
@@ -77,56 +77,8 @@ $recent_expenses = $recent_expenses_stmt->get_result();
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body class="bg-gray-50">
-    <!-- Navigation Bar -->
-    <nav class="bg-white shadow-lg fixed w-full z-50">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <button id="menu-toggle" class="text-gray-500 hover:text-gray-700 focus:outline-none">
-                        <i class="fas fa-bars text-2xl"></i>
-                    </button>
-                    <a href="user_dashboard.php" class="text-2xl font-bold text-blue-600 ml-4">Expense Manager</a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-700">Welcome, <?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
-                    <a href="logout.php" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Logout</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Sidebar Navigation -->
-    <div id="sidebar" class="fixed left-0 top-16 w-64 bg-white shadow-lg h-screen transform -translate-x-full transition-transform duration-300 ease-in-out z-40">
-        <div class="p-4">
-            <ul class="space-y-2">
-                <li>
-                    <a href="user_dashboard.php" class="flex items-center p-2 text-gray-700 hover:bg-blue-50 rounded-md">
-                        <i class="fas fa-home mr-2"></i> Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a href="useraddexpense.php" class="flex items-center p-2 text-gray-700 hover:bg-blue-50 rounded-md">
-                        <i class="fas fa-plus mr-2"></i> Add Expense
-                    </a>
-                </li>
-                <li>
-                    <a href="manageexpense.php" class="flex items-center p-2 text-gray-700 hover:bg-blue-50 rounded-md bg-blue-50">
-                        <i class="fas fa-wallet mr-2"></i> Manage Budget
-                    </a>
-                </li>
-                <li>
-                    <a href="view_reports.php" class="flex items-center p-2 text-gray-700 hover:bg-blue-50 rounded-md">
-                        <i class="fas fa-chart-bar mr-2"></i> View Reports
-                    </a>
-                </li>
-                <li>
-                    <a href="edit_profile.php" class="flex items-center p-2 text-gray-700 hover:bg-blue-50 rounded-md">
-                        <i class="fas fa-user-edit mr-2"></i> Edit Profile
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
+    <?php include 'includes/user_header.php'; ?>
+    <?php include 'includes/user_sidebar.php'; ?>
 
     <!-- Main Content -->
     <div class="pt-20 pb-10 px-4">

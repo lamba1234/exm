@@ -158,20 +158,6 @@ $company = $stmt->get_result()->fetch_assoc();
                             <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($expense['admin_comment'])); ?></p>
                         </div>
                         <?php endif; ?>
-
-                        <!-- Receipt -->
-                        <?php if ($expense['receipt_path']): ?>
-                        <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Receipt</h3>
-                            <div class="mt-2">
-                                <a href="<?php echo htmlspecialchars($expense['receipt_path']); ?>" 
-                                   target="_blank" 
-                                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
-                                    View Receipt
-                                </a>
-                            </div>
-                        </div>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>

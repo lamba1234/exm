@@ -39,11 +39,6 @@ if ($expense['status'] !== 'pending') {
     exit();
 }
 
-// Delete the receipt file if it exists
-if ($expense['receipt_path'] && file_exists($expense['receipt_path'])) {
-    unlink($expense['receipt_path']);
-}
-
 // Delete the expense from the database
 $delete_sql = "DELETE FROM expenses WHERE expense_id = ? AND employee_id = ?";
 $delete_stmt = $conn->prepare($delete_sql);

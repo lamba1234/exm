@@ -33,4 +33,16 @@ CREATE TABLE IF NOT EXISTS budget (
     date DATE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create company_budgets table
+CREATE TABLE IF NOT EXISTS company_budgets (
+    budget_id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    year INT NOT NULL,
+    month INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(company_id) ON DELETE CASCADE
 ); 

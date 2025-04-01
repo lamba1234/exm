@@ -9,7 +9,7 @@
     global $pdo;
 
     $getFromU = new User($pdo);
-    $getFromB = new Budget($pdo);
+    $getFromB = new UserBudget($pdo);
     $getFromE = new Expense($pdo);
 
      define("BASE_URL", "http://localhost/ExpenseManagement-PHP/");
