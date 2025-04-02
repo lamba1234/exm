@@ -94,6 +94,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     unset($_SESSION['registration_success']);
                     ?>
                 <?php endif; ?>
+
+                <?php if (isset($_SESSION['reset_sent'])): ?>
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mt-4" role="alert">
+                        <span class="block sm:inline">If an account exists with that email, you will receive password reset instructions.</span>
+                    </div>
+                    <?php 
+                    unset($_SESSION['reset_sent']);
+                    ?>
+                <?php endif; ?>
                 
                 <?php if (!empty($errors)): ?>
                     <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
@@ -118,6 +127,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
                             <input id="password" name="password" type="password" required 
                                 class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm">
+                            <div class="text-right mt-2">
+                                <a href="forgot_password.php" class="text-sm text-blue-600 hover:text-blue-500">
+                                    Forgot your password?
+                                </a>
+                            </div>
                         </div>
                     </div>
 

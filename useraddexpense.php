@@ -185,8 +185,20 @@ if ($_SESSION['user_type'] === 'user') {
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Category</label>
-                        <input type="text" name="category_name" required
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter category name" value="<?php echo isset($_POST['category_name']) ? htmlspecialchars($_POST['category_name']) : ''; ?>">                    
+                        <select name="category_name" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select a category</option>
+                            <option value="Food & Beverages">Food & Beverages</option>
+                            <option value="Water & Utilities">Water & Utilities</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Office Supplies">Office Supplies</option>
+                            <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                            <option value="Communication">Communication</option>
+                            <option value="Marketing & Advertising">Marketing & Advertising</option>
+                            <option value="Training & Development">Training & Development</option>
+                            <option value="Travel & Accommodation">Travel & Accommodation</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
 
                     <div>

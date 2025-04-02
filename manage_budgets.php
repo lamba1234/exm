@@ -59,7 +59,15 @@ $stmt->execute();
 $current_budget = $stmt->get_result()->fetch_assoc();
 
 // Get budget history
-$sql = "SELECT * FROM company_budgets WHERE company_id = ? ORDER BY year DESC, month DESC LIMIT 12";
+$sql = "SELECT cb.*, 
+        COALESCE(SUM(CASE WHEN e.status = 'approved' THEN e.amount ELSE 0 END), 0) as utilized_amount
+        FROM company_budgets cb
+        LEFT JOIN expenses e ON cb.company_id = e.company_id 
+            AND cb.year = YEAR(e.expense_date) 
+            AND cb.month = MONTH(e.expense_date)
+        WHERE cb.company_id = ? 
+        GROUP BY cb.budget_id
+        ORDER BY cb.year DESC, cb.month DESC LIMIT 12";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $company_id);
 $stmt->execute();
@@ -78,7 +86,7 @@ $company = $stmt->get_result()->fetch_assoc();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Company Budget - Enterprise Expense Tracker</title>
+    <title>Manage Company Budget - Expense Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
@@ -88,122 +96,25 @@ $company = $stmt->get_result()->fetch_assoc();
         <div class="max-w-full mx-auto px-4">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-700 mr-4 lg:hidden">
+                    <button id="admin-sidebar-toggle" class="text-gray-500 hover:text-gray-700 mr-4 lg:hidden">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <a href="admin_dashboard.php" class="text-2xl font-bold text-blue-600">Enterprise Expense Tracker</a>
+                    <a href="admin_dashboard.php" class="text-2xl font-bold text-blue-600">Expense Manager</a>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-gray-700"><?php echo htmlspecialchars($company['company_name']); ?></span>
+                    <span class="text-lg font-semibold text-gray-800"><?php echo htmlspecialchars($company['company_name']); ?></span>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out z-40 mt-16">
-        <div class="h-16 flex items-center justify-between px-4 border-b">
-            <span class="text-xl font-semibold text-gray-800">Menu</span>
-            <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <nav class="mt-6">
-            <div class="px-2 space-y-3">
-                <a href="admin_dashboard.php" class="flex items-center text-left space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="add_expense.php" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    <span>Add Expense</span>
-                </a>
-                <a href="view_expenses.php" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    <span>View All Expenses</span>
-                </a>
-                <a href="manage_budgets.php" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg p-2 bg-blue-50">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span>Manage Budget</span>
-                </a>
-                <a href="manage_employees.php" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                    <span>Manage Employees</span>
-                </a>
-            </div>
-        </nav>
-        <!-- Logout Link -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t">
-            <a href="logout.php" class="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg p-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
-
-    <style>
-    .sidebar-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 30;
-        display: none;
-    }
-
-    @media (max-width: 1024px) {
-        .sidebar-overlay {
-            display: block;
-        }
-    }
-    </style>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        
-        // Mobile sidebar toggle
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('active');
-            });
-        }
-        
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            if (window.innerWidth <= 1024) {
-                if (!sidebar.contains(event.target) && !event.target.closest('#sidebar-toggle')) {
-                    sidebar.classList.remove('active');
-                }
-            }
-        });
-    });
-    </script>
+    <!-- Admin Sidebar -->
+    <?php include 'includes/admin_sidebar.php'; ?>
 
     <!-- Main Content -->
-    <div class="lg:ml-64 pt-16">
+    <div class="main-content pt-16">
         <div class="container mx-auto px-4 py-8">
             <div class="max-w-4xl mx-auto">
                 <h1 class="text-3xl font-bold text-gray-900 mb-8">Manage Company Budget</h1>
@@ -274,18 +185,41 @@ $company = $stmt->get_result()->fetch_assoc();
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilized Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilization %</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Set On</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <?php while ($budget = $budget_history->fetch_assoc()): ?>
+                                <?php while ($budget = $budget_history->fetch_assoc()): 
+                                    $remaining = $budget['amount'] - $budget['utilized_amount'];
+                                    $utilization = $budget['amount'] > 0 ? ($budget['utilized_amount'] / $budget['amount']) * 100 : 0;
+                                ?>
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             <?php echo date('F Y', mktime(0, 0, 0, $budget['month'], 1, $budget['year'])); ?>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             XAF <?php echo number_format($budget['amount'], 2); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            XAF <?php echo number_format($budget['utilized_amount'], 2); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $remaining < 0 ? 'text-red-600' : 'text-green-600'; ?>">
+                                            XAF <?php echo number_format($remaining, 2); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
+                                                    <div class="h-2.5 rounded-full <?php echo $utilization > 80 ? 'bg-red-600' : ($utilization > 60 ? 'bg-yellow-600' : 'bg-green-600'); ?>" 
+                                                         style="width: <?php echo min($utilization, 100); ?>%"></div>
+                                                </div>
+                                                <span class="text-sm <?php echo $utilization > 80 ? 'text-red-600' : ($utilization > 60 ? 'text-yellow-600' : 'text-green-600'); ?>">
+                                                    <?php echo number_format($utilization, 1); ?>%
+                                                </span>
+                                            </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             <?php echo date('M d, Y', strtotime($budget['created_at'])); ?>

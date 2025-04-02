@@ -233,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="text-center mb-2">
                         <p class="text-xs text-gray-600">
                             Already have an account? 
-                            <a href="login.php" class="font-medium text-blue-600 hover:text-blue-500">
+                            <a href="login.php?logout=1" class="font-medium text-blue-600 hover:text-blue-500">
                                 Login here
                             </a>
                         </p>

@@ -2,6 +2,24 @@
 session_start();
 require_once 'config.php';
 
+// Handle logout parameter
+if (isset($_GET['logout'])) {
+    // Clear all session variables
+    $_SESSION = array();
+    
+    // Destroy the session cookie
+    if (isset($_COOKIE[session_name()])) {
+        setcookie(session_name(), '', time()-3600, '/');
+    }
+    
+    // Destroy the session
+    session_destroy();
+    
+    // Redirect to login page
+    header("Location: login.php");
+    exit();
+}
+
 // If user is already logged in, redirect to dashboard
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'employee') {
     header("Location: dashboard.php");
@@ -11,6 +29,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && $_SESSION['u
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
     $code = trim($_POST['employee_code']);
+    $company_name = trim($_POST['company_name']);
     
     $errors = [];
     
@@ -21,10 +40,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($code)) {
         $errors[] = "Employee Code is required";
     }
+
+    if (empty($company_name)) {
+        $errors[] = "Company Name is required";
+    }
     
     if (empty($errors)) {
-        $stmt = $conn->prepare("SELECT e.*, c.company_name FROM employees e JOIN companies c ON e.company_id = c.company_id WHERE e.email = ? AND e.employee_code = ?");
-        $stmt->bind_param("ss", $email, $code);
+        $stmt = $conn->prepare("SELECT e.*, c.company_name FROM employees e JOIN companies c ON e.company_id = c.company_id WHERE e.email = ? AND e.employee_code = ? AND c.company_name = ?");
+        $stmt->bind_param("sss", $email, $code, $company_name);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -41,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             header("Location: dashboard.php");
             exit();
         } else {
-            $errors[] = "Invalid email or employee code";
+            $errors[] = "Invalid email, employee code, or company name";
         }
     }
 }
@@ -91,6 +114,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 <form class="mt-8 space-y-6" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">
                     <div class="rounded-md shadow-sm space-y-4">
+                        <div>
+                            <label for="company_name" class="block text-sm font-medium text-gray-700">Company Name</label>
+                            <input id="company_name" name="company_name" type="text" required 
+                                class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                value="<?php echo isset($_POST['company_name']) ? htmlspecialchars($_POST['company_name']) : ''; ?>">
+                        </div>
+
                         <div>
                             <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
                             <input id="email" name="email" type="email" required 

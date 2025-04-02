@@ -32,78 +32,131 @@ $categories = $stmt->get_result();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $expense_date = $_POST['expense_date'];
-    $amount = $_POST['amount'];
+    $amount = floatval($_POST['amount']);
     $category_name = $_POST['category_name'];
     $description = $_POST['description'];
 
-    // Handle file upload
-    $receipt_path = null;
-    if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = 'uploads/receipts/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+    // Check if budget exists for the current month
+    $budget_sql = "SELECT amount FROM company_budgets WHERE company_id = ? AND year = YEAR(?) AND month = MONTH(?)";
+    $budget_stmt = $conn->prepare($budget_sql);
+    $budget_stmt->bind_param("iss", $company_id, $expense_date, $expense_date);
+    $budget_stmt->execute();
+    $budget_result = $budget_stmt->get_result();
+    $budget = $budget_result->fetch_assoc();
 
-        $file_extension = strtolower(pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf'];
+    if (!$budget) {
+        $error = "No budget has been set for this month. Please contact your administrator.";
+    } else {
+        // Get total expenses for current month
+        $expenses_sql = "SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+                        WHERE company_id = ? 
+                        AND YEAR(expense_date) = YEAR(?) 
+                        AND MONTH(expense_date) = MONTH(?)";
+        $expenses_stmt = $conn->prepare($expenses_sql);
+        $expenses_stmt->bind_param("iss", $company_id, $expense_date, $expense_date);
+        $expenses_stmt->execute();
+        $expenses_result = $expenses_stmt->get_result();
+        $total_expenses = $expenses_result->fetch_assoc()['total'];
 
-        if (in_array($file_extension, $allowed_extensions)) {
-            $file_name = uniqid() . '.' . $file_extension;
-            $receipt_path = $upload_dir.$file_name;
-            
-            if (move_uploaded_file($_FILES['receipt']['tmp_name'], $receipt_path)) {
-                // File uploaded successfully
-            } else {
-                $error = "Failed to upload receipt.";
-            }
+        // Check if adding this expense would exceed the budget
+        if (($total_expenses + $amount) > $budget['amount']) {
+            $error = "This expense would exceed the monthly budget of XAF " . number_format($budget['amount'], 2) . ". Please adjust the amount or contact your administrator.";
         } else {
-            $error = "Invalid file type. Allowed types: JPG, JPEG, PNG, PDF";
-        }
-    }
+            // Handle file upload
+            $receipt_path = null;
+            if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = 'uploads/receipts/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
 
-    if (!isset($error)) {
-        // Start transaction
-        $conn->begin_transaction(); 
-        
-        try {
-            // Check if category exists
-            $sql = "SELECT category_id FROM categories WHERE company_id = ? AND category_name = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("is", $company_id, $category_name);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows > 0) {
-                $category = $result->fetch_assoc();
-                $category_id = $category['category_id'];
-            } else {
-                // Create new category
-                $sql = "INSERT INTO categories (company_id, category_name) VALUES (?, ?)";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("is", $company_id, $category_name);
-                $stmt->execute();
-                $category_id = $conn->insert_id;
+                $file_extension = strtolower(pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION));
+                $allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf'];
+
+                if (in_array($file_extension, $allowed_extensions)) {
+                    $file_name = uniqid() . '.' . $file_extension;
+                    $receipt_path = $upload_dir.$file_name;
+                    
+                    if (move_uploaded_file($_FILES['receipt']['tmp_name'], $receipt_path)) {
+                        // File uploaded successfully
+                    } else {
+                        $error = "Failed to upload receipt.";
+                    }
+                } else {
+                    $error = "Invalid file type. Allowed types: JPG, JPEG, PNG, PDF";
+                }
             }
-            
-            // Insert expense
-            $sql = "INSERT INTO expenses (company_id, employee_id, category_id, expense_date, amount, description, receipt_path, status, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iiissss", $company_id, $user_id, $category_id, $expense_date, $amount, $description, $receipt_path);
-            
-            if ($stmt->execute()) {
-                $conn->commit();
-                header("Location: dashboard.php?success=" . urlencode("Expense submitted successfully!"));
-                exit();
-            } else {
-                throw new Exception("Failed to submit expense");
+
+            if (!isset($error)) {
+                // Start transaction
+                $conn->begin_transaction(); 
+                
+                try {
+                    // Check if category exists
+                    $sql = "SELECT category_id FROM categories WHERE company_id = ? AND category_name = ?";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("is", $company_id, $category_name);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    
+                    if ($result->num_rows > 0) {
+                        $category = $result->fetch_assoc();
+                        $category_id = $category['category_id'];
+                    } else {
+                        // Create new category
+                        $sql = "INSERT INTO categories (company_id, category_name) VALUES (?, ?)";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("is", $company_id, $category_name);
+                        $stmt->execute();
+                        $category_id = $conn->insert_id;
+                    }
+                    
+                    // Insert expense
+                    $sql = "INSERT INTO expenses (company_id, employee_id, category_id, expense_date, amount, description, receipt_path, status, created_at) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("iiissss", $company_id, $user_id, $category_id, $expense_date, $amount, $description, $receipt_path);
+                    
+                    if ($stmt->execute()) {
+                        $conn->commit();
+                        $_SESSION['success'] = "Expense submitted successfully. Waiting for approval.";
+                        header("Location: my_expenses.php");
+                        exit();
+                    } else {
+                        throw new Exception("Failed to submit expense");
+                    }
+                } catch (Exception $e) {
+                    $conn->rollback();
+                    $error = "Failed to submit expense. Please try again.";
+                }
             }
-        } catch (Exception $e) {
-            $conn->rollback();
-            $error = "Failed to submit expense. Please try again.";
         }
     }
 }
+
+// Get current budget for display
+$current_year = date('Y');
+$current_month = date('n');
+$budget_sql = "SELECT amount FROM company_budgets WHERE company_id = ? AND year = ? AND month = ?";
+$budget_stmt = $conn->prepare($budget_sql);
+$budget_stmt->bind_param("iii", $company_id, $current_year, $current_month);
+$budget_stmt->execute();
+$current_budget = $budget_stmt->get_result()->fetch_assoc();
+
+// Get total expenses for current month
+$expenses_sql = "SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+                WHERE company_id = ? 
+                AND YEAR(expense_date) = ? 
+                AND MONTH(expense_date) = ?";
+$expenses_stmt = $conn->prepare($expenses_sql);
+$expenses_stmt->bind_param("iii", $company_id, $current_year, $current_month);
+$expenses_stmt->execute();
+$expenses_result = $expenses_stmt->get_result();
+$total_expenses = $expenses_result->fetch_assoc()['total'];
+
+// Calculate remaining budget
+$remaining_budget = ($current_budget['amount'] ?? 0) - $total_expenses;
+$budget_utilization = ($current_budget['amount'] ?? 0) > 0 ? ($total_expenses / ($current_budget['amount'] ?? 1)) * 100 : 0;
 ?>
 
 <!DOCTYPE html>
@@ -255,56 +308,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
                 
-                <form method="POST" enctype="multipart/form-data" class="space-y-6">
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Date</label>
-                            <input type="date" name="expense_date" required
-                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <?php if ($current_budget): ?>
+                    <div class="bg-white shadow rounded-lg p-6 mb-8">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">Budget Overview</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-blue-800">Monthly Budget</h3>
+                                <p class="text-2xl font-bold text-blue-600">XAF <?php echo number_format($current_budget['amount'], 2); ?></p>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-green-800">Total Expenses</h3>
+                                <p class="text-2xl font-bold text-green-600">XAF <?php echo number_format($total_expenses, 2); ?></p>
+                            </div>
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-yellow-800">Remaining Budget</h3>
+                                <p class="text-2xl font-bold text-yellow-600">XAF <?php echo number_format($remaining_budget, 2); ?></p>
+                            </div>
                         </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Amount (XAF)</label>
-                            <input type="number" name="amount" step="0.01" required
-                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-
-                        <div >
-                            <label class="block text-sm font-medium text-gray-700">Category</label>
-                            <input type="text" name="category_name" required
-                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter category name">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Receipt</label>
-                            <input type="file" name="receipt" accept=".jpg,.jpeg,.png,.pdf" required
-                                   class="mt-1 block w-full text-sm text-gray-500
-                                          file:mr-4 file:py-2 file:px-4
-                                          file:rounded-md file:border-0
-                                          file:text-sm file:font-semibold
-                                          file:bg-blue-50 file:text-blue-700
-                                          hover:file:bg-blue-100">
-                            <p class="mt-1 text-sm text-gray-500">Accepted formats: JPG, JPEG, PNG, PDF</p>
+                        <div class="mt-4">
+                            <div class="relative pt-1">
+                                <div class="flex mb-2 items-center justify-between">
+                                    <div>
+                                        <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full <?php echo $budget_utilization > 80 ? 'text-red-600 bg-red-200' : ($budget_utilization > 60 ? 'text-yellow-600 bg-yellow-200' : 'text-green-600 bg-green-200'); ?>">
+                                            Budget Utilization
+                                        </span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-xs font-semibold inline-block <?php echo $budget_utilization > 80 ? 'text-red-600' : ($budget_utilization > 60 ? 'text-yellow-600' : 'text-green-600'); ?>">
+                                            <?php echo number_format($budget_utilization, 1); ?>%
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded <?php echo $budget_utilization > 80 ? 'bg-red-200' : ($budget_utilization > 60 ? 'bg-yellow-200' : 'bg-green-200'); ?>">
+                                    <div style="width:<?php echo min($budget_utilization, 100); ?>%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center <?php echo $budget_utilization > 80 ? 'bg-red-500' : ($budget_utilization > 60 ? 'bg-yellow-500' : 'bg-green-500'); ?>"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea name="description" rows="3" required
-                                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <?php else: ?>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">No Budget Set</h3>
+                                <div class="mt-2 text-sm text-red-700">
+                                    <p>No budget has been set for this month. Please contact your administrator to set up a budget before submitting expenses.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                <?php endif; ?>
+                
+                <?php if ($current_budget): ?>
+                    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Date</label>
+                                <input type="date" name="expense_date" required
+                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
 
-                    <div class="flex justify-end space-x-4">
-                        <a href="dashboard.php" 
-                           class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-                            Cancel
-                        </a>
-                        <button type="submit" 
-                                class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
-                            Submit Expense
-                        </button>
-                    </div>
-                </form>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Amount (XAF)</label>
+                                <input type="number" name="amount" step="0.01" required
+                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+
+                            <div >
+                                <label class="block text-sm font-medium text-gray-700">Category</label>
+                                <select name="category_name" required
+                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select a category</option>
+                                    <option value="Food & Beverages">Food & Beverages</option>
+                                    <option value="Water & Utilities">Water & Utilities</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                                    <option value="Communication">Communication</option>
+                                    <option value="Marketing & Advertising">Marketing & Advertising</option>
+                                    <option value="Training & Development">Training & Development</option>
+                                    <option value="Travel & Accommodation">Travel & Accommodation</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Receipt</label>
+                                <input type="file" name="receipt" accept=".jpg,.jpeg,.png,.pdf" required
+                                       class="mt-1 block w-full text-sm text-gray-500
+                                              file:mr-4 file:py-2 file:px-4
+                                              file:rounded-md file:border-0
+                                              file:text-sm file:font-semibold
+                                              file:bg-blue-50 file:text-blue-700
+                                              hover:file:bg-blue-100">
+                                <p class="mt-1 text-sm text-gray-500">Accepted formats: JPG, JPEG, PNG, PDF</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea name="description" rows="3" required
+                                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+
+                        <div class="flex justify-end space-x-4">
+                            <a href="dashboard.php" 
+                               class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+                                Cancel
+                            </a>
+                            <button type="submit" 
+                                    class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+                                Submit Expense
+                            </button>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>
